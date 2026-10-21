@@ -19,9 +19,40 @@ Playground Series - Season 6 Episode 10
 ### データ
 
 - 保存場所：`DataSet/` フォルダ（`train.csv` / `test.csv` / `sample_submission.csv`）
-- 列構成や値の分布は、CSVを直接読んで確認すること
 - 元データ「Airline satisfaction dataset」を基にした**合成データ**（分布は元データと近いが同一ではない）
-- 要確認：`satisfaction` の値の形式（文字列か0/1か）。学習前に `value_counts()` で確認し、陽性クラスを決めること
+
+| ファイル | 行数 | 列数 | id の範囲 |
+|---|---|---|---|
+| `train.csv` | 699,635 | 23 | 0 〜 699,634 |
+| `test.csv` | 299,844 | 22（`satisfaction` なし） | 699,635 〜 999,478 |
+| `sample_submission.csv` | 299,844 | 2 | test と同じ |
+
+#### ターゲット
+
+- `satisfaction` は **bool 型（`True` / `False`）**。**`True` = 満足 = 陽性クラス（1）** として扱う
+- 分布：`False` 389,296（55.6%）/ `True` 310,339（44.4%）。大きな不均衡はない
+
+#### 特徴量（`id` と `satisfaction` を除く21列）
+
+| 種類 | 列 | 備考 |
+|---|---|---|
+| 数値 | `Age` | 7〜85 |
+| 数値 | `Flight Distance` | 67〜4,983 |
+| 数値 | `Departure Delay in Minutes` | 0〜489。75%以上が0 |
+| 数値 | `Arrival Delay in Minutes` | 0〜491。75%以上が0。**欠損あり**（train 292件 / test 130件）で float 型 |
+| 評価（0〜5） | `Inflight wifi service`, `Departure/Arrival time convenient`, `Ease of Online booking`, `Gate location`, `Food and drink`, `Online boarding`, `Seat comfort`, `Inflight entertainment`, `On-board service`, `Leg room service`, `Baggage handling`, `Checkin service`, `Cleanliness` | 13列。元データでは **0 は「該当なし / 未回答」** の意味とされるため、単純な順序値として扱うか要検討 |
+| カテゴリ | `Gender` | `Female` / `Male` |
+| カテゴリ | `Customer Type` | `Loyal Customer` / `disloyal Customer`（小文字の d も原文どおり） |
+| カテゴリ | `Type of Travel` | `Personal Travel` / `Business travel` |
+| カテゴリ | `Class` | `Eco` / `Eco Plus` / `Business`（順序あり） |
+
+- 列名に空白や `/` を含むため、LightGBM などに渡すときは列名の置換が必要になる場合がある
+- 上記は 2026-10-21 時点で CSV を集計した値
+
+#### 元データ（外部データとして追加可）
+
+- 候補：Kaggle Dataset「Airline Passenger Satisfaction」（https://www.kaggle.com/datasets/teejmahal20/airline-passenger-satisfaction）
+- 要確認：コンペ側が参照している元データと一致するか、Discussion で確認してから使うこと
 
 ### 提出形式
 
