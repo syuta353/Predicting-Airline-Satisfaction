@@ -1,6 +1,9 @@
 # Kaggle dataset
 DataSet/
 
+# 予測値・提出ファイル・モデル
+outputs/
+
 # Jupyter
 .ipynb_checkpoints/
 
