@@ -33,11 +33,13 @@ Predicting Airline Satisfaction/
 │   ├── __init__.py
 │   ├── common.py                # データ読み込み・CV 分割・提出チェック・実験記録への追記
 │   ├── features.py              # 特徴量の作成
-│   ├── models.py                # モデルの CV 学習（run_lgbm_cv など）。OOF・test 予測・fold ごとの AUC を返す
+│   ├── models.py                # モデルの CV 学習（run_lgbm_cv / run_xgb_cv / run_cat_cv）と結果の保存（save_cv_result）
 │   └── submit.py                # 提出ファイルをチェックして Kaggle に提出し、LB を表示
 ├── exp/                         # 実験スクリプト（1実験 1ファイル、expXXX_<内容>.py）
 │   ├── exp001_lgbm_baseline.py  # 学習処理を内部に持つ（src/models.py 作成前のため）
-│   └── exp002_lgbm_rating_zero.py
+│   ├── exp002_lgbm_rating_zero.py
+│   ├── exp003_xgb_baseline.py
+│   └── exp004_cat_baseline.py   # CatBoost は遅い（サンプル5万行で約3分、全量で約47分）
 ├── notebooks/
 │   └── eda.ipynb                # EDA（先頭にまとめあり）
 ├── records/
@@ -46,7 +48,7 @@ Predicting Airline Satisfaction/
     └── expXXX/
         ├── oof.npy
         ├── test_pred.npy
-        ├── importance.csv       # 特徴量重要度（exp002 以降）
+        ├── importance.csv       # 特徴量重要度（exp002 以降。指標はモデルごとに異なる）
         └── submission.csv
 ```
 
