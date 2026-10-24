@@ -3,6 +3,7 @@ DataSet/
 
 # 予測値・提出ファイル・モデル
 outputs/
+catboost_info/
 
 # Jupyter
 .ipynb_checkpoints/

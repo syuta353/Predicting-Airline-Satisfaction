@@ -25,6 +25,7 @@ PARAMS = {
     "l2_leaf_reg": 3.0,
     "random_seed": SEED,
     "thread_count": -1,
+    "allow_writing_files": False,  # catboost_info/ を作らない
 }
 
 
