@@ -32,6 +32,7 @@ Predicting Airline Satisfaction/
 ├── src/                         # 共通処理
 │   ├── __init__.py
 │   ├── common.py                # データ読み込み・CV 分割・提出チェック・実験記録への追記
+│   ├── ensemble.py              # アンサンブル（OOF の順位化・重みの総当たり・ネスト CV）
 │   ├── features.py              # 特徴量の作成
 │   ├── models.py                # モデルの CV 学習（run_lgbm_cv / run_xgb_cv / run_cat_cv）と結果の保存（save_cv_result）
 │   └── submit.py                # 提出ファイルをチェックして Kaggle に提出し、LB を表示
@@ -39,7 +40,8 @@ Predicting Airline Satisfaction/
 │   ├── exp001_lgbm_baseline.py  # 学習処理を内部に持つ（src/models.py 作成前のため）
 │   ├── exp002_lgbm_rating_zero.py
 │   ├── exp003_xgb_baseline.py
-│   └── exp004_cat_baseline.py   # CatBoost は遅い（サンプル5万行で約3分、全量で約47分）
+│   ├── exp004_cat_baseline.py   # CatBoost は遅い（サンプル5万行で約3分、全量で約47分）
+│   └── exp005_ensemble_rank.py  # exp001/003/004 の順位平均。outputs/ の OOF を使うので、元の実験を先に実行しておく
 ├── notebooks/
 │   └── eda.ipynb                # EDA（先頭にまとめあり）
 ├── records/
