@@ -32,9 +32,12 @@ Predicting Airline Satisfaction/
 ├── src/                         # 共通処理
 │   ├── __init__.py
 │   ├── common.py                # データ読み込み・CV 分割・提出チェック・実験記録への追記
+│   ├── features.py              # 特徴量の作成
+│   ├── models.py                # モデルの CV 学習（run_lgbm_cv など）。OOF・test 予測・fold ごとの AUC を返す
 │   └── submit.py                # 提出ファイルをチェックして Kaggle に提出し、LB を表示
 ├── exp/                         # 実験スクリプト（1実験 1ファイル、expXXX_<内容>.py）
-│   └── exp001_lgbm_baseline.py
+│   ├── exp001_lgbm_baseline.py  # 学習処理を内部に持つ（src/models.py 作成前のため）
+│   └── exp002_lgbm_rating_zero.py
 ├── notebooks/
 │   └── eda.ipynb                # EDA（先頭にまとめあり）
 ├── records/
@@ -43,6 +46,7 @@ Predicting Airline Satisfaction/
     └── expXXX/
         ├── oof.npy
         ├── test_pred.npy
+        ├── importance.csv       # 特徴量重要度（exp002 以降）
         └── submission.csv
 ```
 
@@ -75,6 +79,7 @@ Predicting Airline Satisfaction/
 
 - **train / test の分布はほぼ同じ**（カテゴリ比率・数値の平均とも差は小さい）。exp001 でも CV 0.95888 / LB 0.95849 と近い
 - **評価項目（0〜5）の 0 は順序値として扱えない**：`inflight_wifi_service` は 0 の満足率 0.887（1〜3 は 0.27〜0.39）、`online_boarding` は 0 で 0.620（1〜3 は 0.09〜0.13）。0 の割合は多くて 3.7%（`departure_arrival_time_convenient`）。`baggage_handling` には 0 がない
+  - ただし木モデルでは元の列だけで 0 を分岐できるため、0 フラグや 0 を除いた集計特徴量を足しても CV は改善しなかった（exp002：0.95888 → 0.95871）
 - **満足率の差が大きい列**：`class`（Business 0.73 / Eco 0.17 / Eco Plus 0.24）、`type_of_travel`（Business 0.58 / Personal 0.10）、`customer_type`（Loyal 0.50 / disloyal 0.20）。評価項目では `online_boarding`、`inflight_wifi_service`、`inflight_entertainment` など
 - **遅延**：出発・到着遅延の相関 0.84、両方 0 が 87%。平均は約 1 分で、元データ（約 15 分とされる・未確認）より大幅に小さい可能性がある。元データを追加するときは分布の違いを確認する
 - `arrival_delay_in_minutes` の欠損はごく少ない（train 292 / test 130）
