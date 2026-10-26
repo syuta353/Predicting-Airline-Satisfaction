@@ -7,6 +7,7 @@ Kaggle Playground Series S6E10「Predicting Airline Satisfaction」の作業リ�
 - `Description/description.md` の「分析用サマリー」：タスク、データの列構成、提出形式、ルールがまとまっている
 - 原文（Overview / Data / Rules）は同じファイルの後半にある。ルールの細部を確認するときだけ読めばよい
 - `records/experiments.md`：これまでの実験の CV スコア（各 fold・平均）と Public LB。次の実験の比較や最終提出の選択で、必要に応じて確認する
+- `knowledge/discussion_summary.md`：Kaggle Discussion 全件の要約。効いた施策・効かなかった施策とその効果量、CV / LB の関係、最終提出の選び方。新しい施策を考えるときに確認する
 - **GitHub の Issues**（`gh issue list`）：次のアクションなどのタスクを管理している。作業を始める前に確認する
 
 ## コンペの要点
@@ -48,6 +49,8 @@ Predicting Airline Satisfaction/
 │   ├── exp005_ensemble_rank.py  # exp001/003/004 の順位平均。outputs/ の OOF を使うので、元の実験を先に実行しておく
 │   ├── exp006_lgbm_orig_concat.py  # 元データを学習データに追加
 │   └── exp007_lgbm_orig_te.py   # 元データでのターゲットエンコーディング
+├── knowledge/
+│   └── discussion_summary.md    # Kaggle Discussion の要約（2026-10-26 時点、全 42 Topic）
 ├── notebooks/
 │   └── eda.ipynb                # EDA（先頭にまとめあり）
 ├── records/
