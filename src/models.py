@@ -29,15 +29,23 @@ class CVResult:
 FitFn = Callable[..., tuple[np.ndarray, np.ndarray, int, pd.Series]]
 
 
-def _run_cv(train: pd.DataFrame, test: pd.DataFrame, features: list[str], params: dict, fit_fn: FitFn) -> CVResult:
+def _run_cv(
+    train: pd.DataFrame, test: pd.DataFrame, features: list[str], params: dict, fit_fn: FitFn,
+    extra_train: pd.DataFrame | None = None,
+) -> CVResult:
+    """extra_train（元データなど）を渡すと、各 fold の学習側にだけ足す。検証側には入れない。"""
     X, y = train[features], train[TARGET]
     oof = np.zeros(len(train))
     test_pred = np.zeros(len(test))
     fold_scores, best_iters = [], []
     importance = pd.Series(0.0, index=features)
     for fold, (tr_idx, va_idx) in enumerate(get_folds(y)):
+        X_tr, y_tr = X.iloc[tr_idx], y.iloc[tr_idx]
+        if extra_train is not None:
+            X_tr = pd.concat([X_tr, extra_train[features]], ignore_index=True)
+            y_tr = pd.concat([y_tr, extra_train[TARGET]], ignore_index=True)
         va_pred, te_pred, best_iter, imp = fit_fn(
-            X.iloc[tr_idx], y.iloc[tr_idx], X.iloc[va_idx], y.iloc[va_idx], test[features], params
+            X_tr, y_tr, X.iloc[va_idx], y.iloc[va_idx], test[features], params
         )
         oof[va_idx] = va_pred
         test_pred += te_pred / N_SPLITS
@@ -99,9 +107,12 @@ def save_cv_result(exp_id: str, test: pd.DataFrame, res: CVResult) -> None:
     print(f"saved: {save_submission(exp_id, test, res.test_pred)}")
 
 
-def run_lgbm_cv(train: pd.DataFrame, test: pd.DataFrame, features: list[str], params: dict) -> CVResult:
-    """LightGBM を 5分割 CV で学習する。重要度は gain。"""
-    return _run_cv(train, test, features, params, _fit_lgbm)
+def run_lgbm_cv(
+    train: pd.DataFrame, test: pd.DataFrame, features: list[str], params: dict,
+    extra_train: pd.DataFrame | None = None,
+) -> CVResult:
+    """LightGBM を 5分割 CV で学習する。重要度は gain。extra_train は各 fold の学習側にだけ足す。"""
+    return _run_cv(train, test, features, params, _fit_lgbm, extra_train)
 
 
 def run_xgb_cv(train: pd.DataFrame, test: pd.DataFrame, features: list[str], params: dict) -> CVResult:

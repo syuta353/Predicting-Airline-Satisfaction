@@ -52,7 +52,8 @@ Playground Series - Season 6 Episode 10
 #### 元データ（外部データとして追加可）
 
 - 候補：Kaggle Dataset「Airline Passenger Satisfaction」（https://www.kaggle.com/datasets/teejmahal20/airline-passenger-satisfaction）
-- 要確認：コンペ側が参照している元データと一致するか、Discussion で確認してから使うこと
+- 確認済み（2026-10-26）：列構成がコンペと同じで（元データには `Inflight service` が1列多い）、遅延以外の分布も近いことから、このデータを元データと判断した。Discussion は未確認。ライセンスは other（コンペのルールで元データの使用は明示的に許可されている）
+- 保存場所：`DataSet/original/`
 
 ### 提出形式
 

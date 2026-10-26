@@ -51,6 +51,23 @@ def load_data(nrows: int | None = None) -> tuple[pd.DataFrame, pd.DataFrame]:
     return train, test
 
 
+def load_original() -> pd.DataFrame:
+    """元データ（Kaggle Dataset「Airline Passenger Satisfaction」の train + test）を、コンペと同じ列構成で読み込む。
+
+    コンペにない `Unnamed: 0`・`id`・`Inflight service` は落とす。`satisfaction` は satisfied=1 / それ以外=0。
+    カテゴリ列は load_data() と同じカテゴリ順の category 型にする。
+    """
+    orig = pd.concat(
+        [pd.read_csv(DATA_DIR / "original" / f) for f in ("train.csv", "test.csv")], ignore_index=True
+    )
+    orig.columns = [to_snake(c) for c in orig.columns]
+    orig = orig.drop(columns=["unnamed_0", "id", "inflight_service"])
+    orig[TARGET] = (orig[TARGET] == "satisfied").astype(int)
+    for col in CAT_COLS:
+        orig[col] = pd.Categorical(orig[col], categories=sorted(orig[col].dropna().unique()))
+    return orig
+
+
 def get_folds(y: pd.Series) -> list[tuple[np.ndarray, np.ndarray]]:
     """全実験で共通の StratifiedKFold 分割を返す。"""
     skf = StratifiedKFold(n_splits=N_SPLITS, shuffle=True, random_state=SEED)

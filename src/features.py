@@ -3,7 +3,22 @@
 import numpy as np
 import pandas as pd
 
-from src.common import RATING_COLS
+from src.common import RATING_COLS, TARGET
+
+
+def add_original_te(df: pd.DataFrame, orig: pd.DataFrame, cols: list[str], min_count: int = 20) -> pd.DataFrame:
+    """各列の値ごとに、元データでの満足率と件数を特徴量として追加する（`<col>_orig_te` / `<col>_orig_cnt`）。
+
+    元データはコンペのデータと別なので、CV の fold をまたいだリークは起きない。
+    件数が min_count 未満の値と、元データにない値は NaN にする。
+    """
+    df = df.copy()
+    for col in cols:
+        stats = orig.groupby(orig[col].astype(str), observed=True)[TARGET].agg(["mean", "size"])
+        key = df[col].astype(str)
+        df[f"{col}_orig_te"] = key.map(stats["mean"].where(stats["size"] >= min_count)).astype(float)
+        df[f"{col}_orig_cnt"] = key.map(stats["size"]).fillna(0).astype(float)
+    return df
 
 
 def add_rating_zero_features(df: pd.DataFrame) -> pd.DataFrame:

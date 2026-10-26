@@ -26,22 +26,28 @@ Predicting Airline Satisfaction/
 ├── DataSet/                     # コンペデータ（Git 管理外）
 │   ├── train.csv
 │   ├── test.csv
-│   └── sample_submission.csv
+│   ├── sample_submission.csv
+│   └── original/                # 元データ（Kaggle Dataset teejmahal20/airline-passenger-satisfaction）
+│       ├── train.csv            # train + test を合わせて 129,880 行。load_original() で読み込む
+│       └── test.csv
 ├── Description/
 │   └── description.md           # コンペ説明（分析用サマリー + 原文）
 ├── src/                         # 共通処理
 │   ├── __init__.py
-│   ├── common.py                # データ読み込み・CV 分割・提出チェック・実験記録への追記
+│   ├── common.py                # データ読み込み（load_data / load_original）・CV 分割・提出チェック・実験記録への追記
 │   ├── ensemble.py              # アンサンブル（OOF の順位化・重みの総当たり・ネスト CV）
-│   ├── features.py              # 特徴量の作成
+│   ├── features.py              # 特徴量の作成（評価0の特徴量、元データでのターゲットエンコーディング）
 │   ├── models.py                # モデルの CV 学習（run_lgbm_cv / run_xgb_cv / run_cat_cv）と結果の保存（save_cv_result）
+│   │                            # run_lgbm_cv の extra_train に渡したデータは各 fold の学習側にだけ足す
 │   └── submit.py                # 提出ファイルをチェックして Kaggle に提出し、LB を表示
 ├── exp/                         # 実験スクリプト（1実験 1ファイル、expXXX_<内容>.py）
 │   ├── exp001_lgbm_baseline.py  # 学習処理を内部に持つ（src/models.py 作成前のため）
 │   ├── exp002_lgbm_rating_zero.py
 │   ├── exp003_xgb_baseline.py
 │   ├── exp004_cat_baseline.py   # CatBoost は遅い（サンプル5万行で約3分、全量で約47分）
-│   └── exp005_ensemble_rank.py  # exp001/003/004 の順位平均。outputs/ の OOF を使うので、元の実験を先に実行しておく
+│   ├── exp005_ensemble_rank.py  # exp001/003/004 の順位平均。outputs/ の OOF を使うので、元の実験を先に実行しておく
+│   ├── exp006_lgbm_orig_concat.py  # 元データを学習データに追加
+│   └── exp007_lgbm_orig_te.py   # 元データでのターゲットエンコーディング
 ├── notebooks/
 │   └── eda.ipynb                # EDA（先頭にまとめあり）
 ├── records/
@@ -85,7 +91,14 @@ Predicting Airline Satisfaction/
 - **評価項目（0〜5）の 0 は順序値として扱えない**：`inflight_wifi_service` は 0 の満足率 0.887（1〜3 は 0.27〜0.39）、`online_boarding` は 0 で 0.620（1〜3 は 0.09〜0.13）。0 の割合は多くて 3.7%（`departure_arrival_time_convenient`）。`baggage_handling` には 0 がない
   - ただし木モデルでは元の列だけで 0 を分岐できるため、0 フラグや 0 を除いた集計特徴量を足しても CV は改善しなかった（exp002：0.95888 → 0.95871）
 - **満足率の差が大きい列**：`class`（Business 0.73 / Eco 0.17 / Eco Plus 0.24）、`type_of_travel`（Business 0.58 / Personal 0.10）、`customer_type`（Loyal 0.50 / disloyal 0.20）。評価項目では `online_boarding`、`inflight_wifi_service`、`inflight_entertainment` など
-- **遅延**：出発・到着遅延の相関 0.84、両方 0 が 87%。平均は約 1 分で、元データ（約 15 分とされる・未確認）より大幅に小さい可能性がある。元データを追加するときは分布の違いを確認する
+- **遅延**：出発・到着遅延の相関 0.84、両方 0 が 87%。平均は約 1 分で、元データ（約 15 分）より大幅に小さい
+- **元データとの比較**（`DataSet/original/`、129,880 行）：
+  - 列は同じ。ただし元データには `Inflight service` が1列多い（コンペにはない）
+  - **遅延の分布が大きく違う**：出発遅延が 0 の割合はコンペ 91% / 元データ 56%、平均は約 1 分 / 約 15 分、90%点は 0 分 / 44 分
+  - それ以外（カテゴリ比率、評価の平均、満足率 44.4% / 43.5%）は近い。`flight_distance` はコンペのほうがやや長い（平均 1,354 / 1,190）
+  - 評価の 0 の傾向も同じ（元データでは `inflight_wifi_service` が 0 の満足率 0.997）
+  - 元データと完全一致する行は test 4行、train 17行のみ
+  - **元データは「特徴量」として使うと効く**：各列の値ごとの元データでの満足率（ターゲットエンコーディング）を足すと CV +0.00072 / LB +0.00069（exp007）。学習データに行を足すだけだと逆に下がった（exp006：-0.00020）
 - `arrival_delay_in_minutes` の欠損はごく少ない（train 292 / test 130）
 - train 内の重複行、train と完全一致する test 行はない
 
