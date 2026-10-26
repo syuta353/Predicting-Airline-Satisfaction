@@ -76,6 +76,21 @@ def make_fold_target_encoder(cols: list[str], m: float = 10.0, n_inner: int = 5)
     return fold_fn
 
 
+def build_exp009_features(train: pd.DataFrame, test: pd.DataFrame, orig: pd.DataFrame):
+    """exp009 の特徴量（2026-10-26 時点の最良）を作る。モデルの種類を変えて同じ特徴量を使うときに呼ぶ。
+
+    元データの教師モデル + 元データ TE + 路線の件数・プロファイル。fold 内 TE は返り値の fold_fn で作る。
+    戻り値：(train, test, features, fold_fn)
+    """
+    base = [c for c in train.columns if c not in ("id", TARGET)]
+    train, test = add_original_teacher(train, test, orig, base)
+    train, test = add_original_te(train, orig, base), add_original_te(test, orig, base)
+    train, test = add_route_count(train, test)
+    train, test = add_route_profile(train, test)
+    features = [c for c in train.columns if c not in ("id", TARGET)]
+    return train, test, features, make_fold_target_encoder([ROUTE_KEY])
+
+
 def add_original_teacher(
     train: pd.DataFrame, test: pd.DataFrame, orig: pd.DataFrame, cols: list[str]
 ) -> tuple[pd.DataFrame, pd.DataFrame]:
