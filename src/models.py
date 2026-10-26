@@ -27,29 +27,34 @@ class CVResult:
 
 # 1 fold 分の学習関数：(X_tr, y_tr, X_va, y_va, X_test, params) -> (va_pred, test_pred, best_iter, importance)
 FitFn = Callable[..., tuple[np.ndarray, np.ndarray, int, pd.Series]]
+# fold ごとの特徴量作成：(X_tr, y_tr, X_va, X_test) -> (X_tr, X_va, X_test)。ターゲットエンコーディングなど、
+# 学習側のラベルを使う特徴量はここで作る（全データで作るとリークする）
+FoldFn = Callable[..., tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]]
 
 
 def _run_cv(
     train: pd.DataFrame, test: pd.DataFrame, features: list[str], params: dict, fit_fn: FitFn,
-    extra_train: pd.DataFrame | None = None,
+    extra_train: pd.DataFrame | None = None, fold_fn: FoldFn | None = None,
 ) -> CVResult:
-    """extra_train（元データなど）を渡すと、各 fold の学習側にだけ足す。検証側には入れない。"""
+    """extra_train（元データなど）を渡すと、各 fold の学習側にだけ足す。検証側には入れない。
+    fold_fn を渡すと、各 fold で学習側のデータから特徴量を作って足す。"""
     X, y = train[features], train[TARGET]
     oof = np.zeros(len(train))
     test_pred = np.zeros(len(test))
     fold_scores, best_iters = [], []
-    importance = pd.Series(0.0, index=features)
+    importance = pd.Series(dtype=float)
     for fold, (tr_idx, va_idx) in enumerate(get_folds(y)):
         X_tr, y_tr = X.iloc[tr_idx], y.iloc[tr_idx]
+        X_va, X_te = X.iloc[va_idx], test[features]
         if extra_train is not None:
             X_tr = pd.concat([X_tr, extra_train[features]], ignore_index=True)
             y_tr = pd.concat([y_tr, extra_train[TARGET]], ignore_index=True)
-        va_pred, te_pred, best_iter, imp = fit_fn(
-            X_tr, y_tr, X.iloc[va_idx], y.iloc[va_idx], test[features], params
-        )
+        if fold_fn is not None:
+            X_tr, X_va, X_te = fold_fn(X_tr, y_tr, X_va, X_te)
+        va_pred, te_pred, best_iter, imp = fit_fn(X_tr, y_tr, X_va, y.iloc[va_idx], X_te, params)
         oof[va_idx] = va_pred
         test_pred += te_pred / N_SPLITS
-        importance = importance.add(imp.reindex(features).fillna(0) / N_SPLITS)
+        importance = importance.add(imp / N_SPLITS, fill_value=0)
         score = roc_auc_score(y.iloc[va_idx], va_pred)
         fold_scores.append(score)
         best_iters.append(best_iter)
@@ -109,17 +114,21 @@ def save_cv_result(exp_id: str, test: pd.DataFrame, res: CVResult) -> None:
 
 def run_lgbm_cv(
     train: pd.DataFrame, test: pd.DataFrame, features: list[str], params: dict,
-    extra_train: pd.DataFrame | None = None,
+    extra_train: pd.DataFrame | None = None, fold_fn: FoldFn | None = None,
 ) -> CVResult:
     """LightGBM を 5分割 CV で学習する。重要度は gain。extra_train は各 fold の学習側にだけ足す。"""
-    return _run_cv(train, test, features, params, _fit_lgbm, extra_train)
+    return _run_cv(train, test, features, params, _fit_lgbm, extra_train, fold_fn)
 
 
-def run_xgb_cv(train: pd.DataFrame, test: pd.DataFrame, features: list[str], params: dict) -> CVResult:
+def run_xgb_cv(
+    train: pd.DataFrame, test: pd.DataFrame, features: list[str], params: dict, fold_fn: FoldFn | None = None,
+) -> CVResult:
     """XGBoost を 5分割 CV で学習する（category 型の列はそのまま渡す）。重要度は total_gain。"""
-    return _run_cv(train, test, features, params, _fit_xgb)
+    return _run_cv(train, test, features, params, _fit_xgb, fold_fn=fold_fn)
 
 
-def run_cat_cv(train: pd.DataFrame, test: pd.DataFrame, features: list[str], params: dict) -> CVResult:
+def run_cat_cv(
+    train: pd.DataFrame, test: pd.DataFrame, features: list[str], params: dict, fold_fn: FoldFn | None = None,
+) -> CVResult:
     """CatBoost を 5分割 CV で学習する（CAT_COLS をカテゴリ列として渡す）。params には iterations を含める。"""
-    return _run_cv(train, test, features, params, _fit_cat)
+    return _run_cv(train, test, features, params, _fit_cat, fold_fn=fold_fn)

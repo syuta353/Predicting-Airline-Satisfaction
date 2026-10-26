@@ -37,9 +37,9 @@ Predicting Airline Satisfaction/
 │   ├── __init__.py
 │   ├── common.py                # データ読み込み（load_data / load_original）・CV 分割・提出チェック・実験記録への追記
 │   ├── ensemble.py              # アンサンブル（OOF の順位化・重みの総当たり・ネスト CV）
-│   ├── features.py              # 特徴量の作成（評価0の特徴量、元データでのターゲットエンコーディング）
+│   ├── features.py              # 特徴量の作成（元データ TE・教師モデル、路線の件数・プロファイル、fold 内 TE）
 │   ├── models.py                # モデルの CV 学習（run_lgbm_cv / run_xgb_cv / run_cat_cv）と結果の保存（save_cv_result）
-│   │                            # run_lgbm_cv の extra_train に渡したデータは各 fold の学習側にだけ足す
+│   │                            # extra_train：各 fold の学習側にだけ足すデータ。fold_fn：fold ごとに作る特徴量（fold 内 TE など）
 │   └── submit.py                # 提出ファイルをチェックして Kaggle に提出し、LB を表示
 ├── exp/                         # 実験スクリプト（1実験 1ファイル、expXXX_<内容>.py）
 │   ├── exp001_lgbm_baseline.py  # 学習処理を内部に持つ（src/models.py 作成前のため）
@@ -48,7 +48,9 @@ Predicting Airline Satisfaction/
 │   ├── exp004_cat_baseline.py   # CatBoost は遅い（サンプル5万行で約3分、全量で約47分）
 │   ├── exp005_ensemble_rank.py  # exp001/003/004 の順位平均。outputs/ の OOF を使うので、元の実験を先に実行しておく
 │   ├── exp006_lgbm_orig_concat.py  # 元データを学習データに追加
-│   └── exp007_lgbm_orig_te.py   # 元データでのターゲットエンコーディング
+│   ├── exp007_lgbm_orig_te.py   # 元データでのターゲットエンコーディング
+│   ├── exp008_lgbm_route.py     # 路線 ID 特徴量。--variant a/b/c でブロックを切り替え（b を採用）
+│   └── exp009_lgbm_teacher.py   # exp008b + 元データの教師モデル（2026-10-26 時点の最良の単体）
 ├── knowledge/
 │   └── discussion_summary.md    # Kaggle Discussion の要約（2026-10-26 時点、全 42 Topic）
 ├── notebooks/
@@ -101,7 +103,9 @@ Predicting Airline Satisfaction/
   - それ以外（カテゴリ比率、評価の平均、満足率 44.4% / 43.5%）は近い。`flight_distance` はコンペのほうがやや長い（平均 1,354 / 1,190）
   - 評価の 0 の傾向も同じ（元データでは `inflight_wifi_service` が 0 の満足率 0.997）
   - 元データと完全一致する行は test 4行、train 17行のみ
+  - **元データで学習した教師モデル**の予測を特徴量にすると、さらに CV +0.00025（exp009）。教師モデル単体でコンペの train を AUC 0.9545 で当てる
   - **元データは「特徴量」として使うと効く**：各列の値ごとの元データでの満足率（ターゲットエンコーディング）を足すと CV +0.00072 / LB +0.00069（exp007）。学習データに行を足すだけだと逆に下がった（exp006：-0.00020）
+- **Flight Distance は路線 ID として効く**（Discussion の知見を検証）：件数 + fold 内 TE で CV +0.00064（exp008a）、さらに路線ごとの他の列の平均（路線プロファイル）で +0.00025（exp008b）。路線平均との残差まで足すと逆に下がった（exp008c）
 - `arrival_delay_in_minutes` の欠損はごく少ない（train 292 / test 130）
 - train 内の重複行、train と完全一致する test 行はない
 
