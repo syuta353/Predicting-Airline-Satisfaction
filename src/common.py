@@ -68,9 +68,9 @@ def load_original() -> pd.DataFrame:
     return orig
 
 
-def get_folds(y: pd.Series) -> list[tuple[np.ndarray, np.ndarray]]:
-    """全実験で共通の StratifiedKFold 分割を返す。"""
-    skf = StratifiedKFold(n_splits=N_SPLITS, shuffle=True, random_state=SEED)
+def get_folds(y: pd.Series, n_splits: int = N_SPLITS) -> list[tuple[np.ndarray, np.ndarray]]:
+    """全実験で共通の StratifiedKFold 分割を返す。n_splits=10 は最終モデル用（Issue #11）。"""
+    skf = StratifiedKFold(n_splits=n_splits, shuffle=True, random_state=SEED)
     return list(skf.split(np.zeros(len(y)), y))
 
 

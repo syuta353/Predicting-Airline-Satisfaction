@@ -34,7 +34,7 @@ FoldFn = Callable[..., tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]]
 
 def _run_cv(
     train: pd.DataFrame, test: pd.DataFrame, features: list[str], params: dict, fit_fn: FitFn,
-    extra_train: pd.DataFrame | None = None, fold_fn: FoldFn | None = None,
+    extra_train: pd.DataFrame | None = None, fold_fn: FoldFn | None = None, n_splits: int = N_SPLITS,
 ) -> CVResult:
     """extra_train（元データなど）を渡すと、各 fold の学習側にだけ足す。検証側には入れない。
     fold_fn を渡すと、各 fold で学習側のデータから特徴量を作って足す。"""
@@ -43,7 +43,7 @@ def _run_cv(
     test_pred = np.zeros(len(test))
     fold_scores, best_iters = [], []
     importance = pd.Series(dtype=float)
-    for fold, (tr_idx, va_idx) in enumerate(get_folds(y)):
+    for fold, (tr_idx, va_idx) in enumerate(get_folds(y, n_splits)):
         X_tr, y_tr = X.iloc[tr_idx], y.iloc[tr_idx]
         X_va, X_te = X.iloc[va_idx], test[features]
         if extra_train is not None:
@@ -53,8 +53,8 @@ def _run_cv(
             X_tr, X_va, X_te = fold_fn(X_tr, y_tr, X_va, X_te)
         va_pred, te_pred, best_iter, imp = fit_fn(X_tr, y_tr, X_va, y.iloc[va_idx], X_te, params)
         oof[va_idx] = va_pred
-        test_pred += te_pred / N_SPLITS
-        importance = importance.add(imp / N_SPLITS, fill_value=0)
+        test_pred += te_pred / n_splits
+        importance = importance.add(imp / n_splits, fill_value=0)
         score = roc_auc_score(y.iloc[va_idx], va_pred)
         fold_scores.append(score)
         best_iters.append(best_iter)
@@ -114,21 +114,23 @@ def save_cv_result(exp_id: str, test: pd.DataFrame, res: CVResult) -> None:
 
 def run_lgbm_cv(
     train: pd.DataFrame, test: pd.DataFrame, features: list[str], params: dict,
-    extra_train: pd.DataFrame | None = None, fold_fn: FoldFn | None = None,
+    extra_train: pd.DataFrame | None = None, fold_fn: FoldFn | None = None, n_splits: int = N_SPLITS,
 ) -> CVResult:
-    """LightGBM を 5分割 CV で学習する。重要度は gain。extra_train は各 fold の学習側にだけ足す。"""
-    return _run_cv(train, test, features, params, _fit_lgbm, extra_train, fold_fn)
+    """LightGBM を CV（既定は 5分割）で学習する。重要度は gain。extra_train は各 fold の学習側にだけ足す。"""
+    return _run_cv(train, test, features, params, _fit_lgbm, extra_train, fold_fn, n_splits)
 
 
 def run_xgb_cv(
     train: pd.DataFrame, test: pd.DataFrame, features: list[str], params: dict, fold_fn: FoldFn | None = None,
+    n_splits: int = N_SPLITS,
 ) -> CVResult:
-    """XGBoost を 5分割 CV で学習する（category 型の列はそのまま渡す）。重要度は total_gain。"""
-    return _run_cv(train, test, features, params, _fit_xgb, fold_fn=fold_fn)
+    """XGBoost を CV（既定は 5分割）で学習する（category 型の列はそのまま渡す）。重要度は total_gain。"""
+    return _run_cv(train, test, features, params, _fit_xgb, fold_fn=fold_fn, n_splits=n_splits)
 
 
 def run_cat_cv(
     train: pd.DataFrame, test: pd.DataFrame, features: list[str], params: dict, fold_fn: FoldFn | None = None,
+    n_splits: int = N_SPLITS,
 ) -> CVResult:
-    """CatBoost を 5分割 CV で学習する（CAT_COLS をカテゴリ列として渡す）。params には iterations を含める。"""
-    return _run_cv(train, test, features, params, _fit_cat, fold_fn=fold_fn)
+    """CatBoost を CV（既定は 5分割）で学習する（CAT_COLS をカテゴリ列として渡す）。params には iterations を含める。"""
+    return _run_cv(train, test, features, params, _fit_cat, fold_fn=fold_fn, n_splits=n_splits)

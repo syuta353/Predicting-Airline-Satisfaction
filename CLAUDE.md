@@ -54,7 +54,9 @@ Predicting Airline Satisfaction/
 │   ├── exp009_lgbm_teacher.py   # exp008b + 元データの教師モデル（2026-10-26 時点の最良の単体）
 │   ├── exp010_xgb_exp009feat.py # XGBoost + exp009 の特徴量（build_exp009_features）
 │   ├── exp011_cat_exp009feat.py # CatBoost + exp009 の特徴量。全量で約30分
-│   └── exp012_ensemble_exp009feat.py  # exp009/010/011 の順位平均（2026-10-26 時点の最良：CV 0.96101 / LB 0.96053）
+│   ├── exp012_ensemble_exp009feat.py  # exp009/010/011 の順位平均（2026-10-26 時点の最良：CV 0.96101 / LB 0.96053）
+│   ├── exp013_10fold.py         # exp009/010/011 を 10分割で学習。--model lgbm/xgb/cat → exp013/014/015（cat は約1時間）
+│   └── exp016_ensemble_10fold.py  # exp013/014/015 の順位平均（2026-10-28 時点の最良：CV 0.96116 / LB 0.96057）
 ├── knowledge/
 │   └── discussion_summary.md    # Kaggle Discussion の要約（2026-10-26 時点、全 42 Topic）
 ├── notebooks/
@@ -89,6 +91,7 @@ Predicting Airline Satisfaction/
 
 - **手元の交差検証（CV）スコアを主な指標にする**。Public LB は test の一部でしか評価されないため、LB に合わせて調整しすぎない
 - 交差検証は `StratifiedKFold`（5分割、`shuffle=True`、`random_state=42`）を基本とし、実験間で同じ分割を使う
+  - 最終モデルは 10分割で学習することがある（`n_splits=10`）。その場合も記録表の CV は、10分割の OOF を 5分割の区切りで評価した値にして比較できるようにする
 - 実験ごとに CV スコア（各 fold と平均）・主な設定・LB スコアを記録し、最終提出 2つを選ぶ判断材料にする
 - 提出前に、行数が 299,844、`id` が test と一致、値が 0〜1、欠損なし、列名が `id,satisfaction` であることを確認する（`src/submit.py` で自動チェック）
 
@@ -111,6 +114,7 @@ Predicting Airline Satisfaction/
   - exp009 の特徴量で XGBoost・CatBoost も学習すると、3 モデルの OOF 相関が 0.982〜0.986 まで下がり（元の特徴量だけのときは 0.998〜0.999）、順位平均で CV +0.00021（exp012）
   - **元データは「特徴量」として使うと効く**：各列の値ごとの元データでの満足率（ターゲットエンコーディング）を足すと CV +0.00072 / LB +0.00069（exp007）。学習データに行を足すだけだと逆に下がった（exp006：-0.00020）
 - **Flight Distance は路線 ID として効く**（Discussion の知見を検証）：件数 + fold 内 TE で CV +0.00064（exp008a）、さらに路線ごとの他の列の平均（路線プロファイル）で +0.00025（exp008b）。路線平均との残差まで足すと逆に下がった（exp008c）
+- **10分割で学習すると単体で CV +0.00013〜0.00017**（LGB 0.96074→0.96088、XGB 0.96075→0.96088、Cat 0.96080→0.96097。5分割の区切りで評価）。順位平均は CV 0.96116 / LB 0.96057（exp016、exp012 より +0.00015 / +0.00004）
 - `arrival_delay_in_minutes` の欠損はごく少ない（train 292 / test 130）
 - train 内の重複行、train と完全一致する test 行はない
 
