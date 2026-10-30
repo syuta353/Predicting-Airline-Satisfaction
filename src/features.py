@@ -9,6 +9,21 @@ from src.common import RATING_COLS, SEED, TARGET
 ROUTE_KEY = "flight_distance"  # 約 3,500 種類の値が繰り返し出てくるので「路線 ID」として扱う
 
 
+CROSS_CONTEXT_COLS = ["class", "type_of_travel", "customer_type"]
+
+
+def add_rating_context_cross(df: pd.DataFrame) -> pd.DataFrame:
+    """評価 13 列 × {Class, Type of Travel, Customer Type} の交差 39 列を category 型で追加する（CatBoost 向け）。
+
+    列名は `<評価>_x_<文脈>`、値は「評価値|カテゴリ」。Discussion で CatBoost にだけ効くと報告されている（LightGBM では悪化）。
+    """
+    crosses = {
+        f"{r}_x_{c}": (df[r].astype(str) + "|" + df[c].astype(str)).astype("category")
+        for r in RATING_COLS for c in CROSS_CONTEXT_COLS
+    }
+    return df.assign(**crosses)
+
+
 def add_route_count(train: pd.DataFrame, test: pd.DataFrame) -> tuple[pd.DataFrame, pd.DataFrame]:
     """同じ Flight Distance の行数（train + test で数える。ラベル不使用）を `fd_count` として追加する。"""
     counts = pd.concat([train[ROUTE_KEY], test[ROUTE_KEY]]).value_counts()

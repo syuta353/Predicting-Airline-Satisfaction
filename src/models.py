@@ -1,6 +1,7 @@
 """モデルの学習（共通の CV 分割で OOF と test 予測を作る）。"""
 
 from dataclasses import dataclass, field
+from pathlib import Path
 from typing import Callable
 
 import lightgbm as lgb
@@ -35,23 +36,34 @@ FoldFn = Callable[..., tuple[pd.DataFrame, pd.DataFrame, pd.DataFrame]]
 def _run_cv(
     train: pd.DataFrame, test: pd.DataFrame, features: list[str], params: dict, fit_fn: FitFn,
     extra_train: pd.DataFrame | None = None, fold_fn: FoldFn | None = None, n_splits: int = N_SPLITS,
+    checkpoint_dir: Path | None = None,
 ) -> CVResult:
     """extra_train（元データなど）を渡すと、各 fold の学習側にだけ足す。検証側には入れない。
-    fold_fn を渡すと、各 fold で学習側のデータから特徴量を作って足す。"""
+    fold_fn を渡すと、各 fold で学習側のデータから特徴量を作って足す。
+    checkpoint_dir を渡すと、fold ごとの結果を保存し、再実行時は保存済みの fold を飛ばす（長時間の学習が途中で止まったとき用）。"""
+    if checkpoint_dir is not None:
+        checkpoint_dir.mkdir(parents=True, exist_ok=True)
     X, y = train[features], train[TARGET]
     oof = np.zeros(len(train))
     test_pred = np.zeros(len(test))
     fold_scores, best_iters = [], []
     importance = pd.Series(dtype=float)
     for fold, (tr_idx, va_idx) in enumerate(get_folds(y, n_splits)):
-        X_tr, y_tr = X.iloc[tr_idx], y.iloc[tr_idx]
-        X_va, X_te = X.iloc[va_idx], test[features]
-        if extra_train is not None:
-            X_tr = pd.concat([X_tr, extra_train[features]], ignore_index=True)
-            y_tr = pd.concat([y_tr, extra_train[TARGET]], ignore_index=True)
-        if fold_fn is not None:
-            X_tr, X_va, X_te = fold_fn(X_tr, y_tr, X_va, X_te)
-        va_pred, te_pred, best_iter, imp = fit_fn(X_tr, y_tr, X_va, y.iloc[va_idx], X_te, params)
+        ckpt = checkpoint_dir / f"fold{fold + 1}.pkl" if checkpoint_dir is not None else None
+        if ckpt is not None and ckpt.exists():
+            va_pred, te_pred, best_iter, imp = pd.read_pickle(ckpt)
+            print(f"fold {fold + 1}: 保存済みの結果を読み込み", flush=True)
+        else:
+            X_tr, y_tr = X.iloc[tr_idx], y.iloc[tr_idx]
+            X_va, X_te = X.iloc[va_idx], test[features]
+            if extra_train is not None:
+                X_tr = pd.concat([X_tr, extra_train[features]], ignore_index=True)
+                y_tr = pd.concat([y_tr, extra_train[TARGET]], ignore_index=True)
+            if fold_fn is not None:
+                X_tr, X_va, X_te = fold_fn(X_tr, y_tr, X_va, X_te)
+            va_pred, te_pred, best_iter, imp = fit_fn(X_tr, y_tr, X_va, y.iloc[va_idx], X_te, params)
+            if ckpt is not None:
+                pd.to_pickle((va_pred, te_pred, best_iter, imp), ckpt)
         oof[va_idx] = va_pred
         test_pred += te_pred / n_splits
         importance = importance.add(imp / n_splits, fill_value=0)
@@ -88,8 +100,8 @@ def _fit_xgb(X_tr, y_tr, X_va, y_va, X_te, params):
 
 
 def _fit_cat(X_tr, y_tr, X_va, y_va, X_te, params):
-    # CatBoost はカテゴリ列を文字列で受け取る
-    cat = [c for c in CAT_COLS if c in X_tr.columns]
+    # CatBoost はカテゴリ列を文字列で受け取る。元のカテゴリ列に加え、category 型で足した列（交差など）もカテゴリにする
+    cat = [c for c in X_tr.columns if c in CAT_COLS or isinstance(X_tr[c].dtype, pd.CategoricalDtype)]
     to_str = lambda X: X.astype({c: str for c in cat})
     model = CatBoostClassifier(**params)
     model.fit(
@@ -130,7 +142,9 @@ def run_xgb_cv(
 
 def run_cat_cv(
     train: pd.DataFrame, test: pd.DataFrame, features: list[str], params: dict, fold_fn: FoldFn | None = None,
-    n_splits: int = N_SPLITS,
+    n_splits: int = N_SPLITS, checkpoint_dir: Path | None = None,
 ) -> CVResult:
-    """CatBoost を CV（既定は 5分割）で学習する（CAT_COLS をカテゴリ列として渡す）。params には iterations を含める。"""
-    return _run_cv(train, test, features, params, _fit_cat, fold_fn=fold_fn, n_splits=n_splits)
+    """CatBoost を CV（既定は 5分割）で学習する（CAT_COLS と category 型の列をカテゴリ列として渡す）。
+    params には iterations を含める。checkpoint_dir は _run_cv を参照。"""
+    return _run_cv(train, test, features, params, _fit_cat, fold_fn=fold_fn, n_splits=n_splits,
+                   checkpoint_dir=checkpoint_dir)

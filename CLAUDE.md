@@ -56,7 +56,9 @@ Predicting Airline Satisfaction/
 │   ├── exp011_cat_exp009feat.py # CatBoost + exp009 の特徴量。全量で約30分
 │   ├── exp012_ensemble_exp009feat.py  # exp009/010/011 の順位平均（2026-10-26 時点の最良：CV 0.96101 / LB 0.96053）
 │   ├── exp013_10fold.py         # exp009/010/011 を 10分割で学習。--model lgbm/xgb/cat → exp013/014/015（cat は約1時間）
-│   └── exp016_ensemble_10fold.py  # exp013/014/015 の順位平均（2026-10-28 時点の最良：CV 0.96116 / LB 0.96057）
+│   ├── exp016_ensemble_10fold.py  # exp013/014/015 の順位平均（CV 0.96116 / LB 0.96057）
+│   ├── exp017_cat_cross.py      # CatBoost + 評価 × 文脈の交差 39 列、10分割。約3.6時間。fold ごとに outputs/exp017/folds/ に保存し、止まっても続きから再開できる
+│   └── exp018_ensemble_4models.py  # exp013/014/015/017 の順位平均（2026-10-30 時点の最良：CV 0.96121 / LB 0.96058）
 ├── knowledge/
 │   └── discussion_summary.md    # Kaggle Discussion の要約（2026-10-26 時点、全 42 Topic）
 ├── notebooks/
@@ -115,6 +117,7 @@ Predicting Airline Satisfaction/
   - **元データは「特徴量」として使うと効く**：各列の値ごとの元データでの満足率（ターゲットエンコーディング）を足すと CV +0.00072 / LB +0.00069（exp007）。学習データに行を足すだけだと逆に下がった（exp006：-0.00020）
 - **Flight Distance は路線 ID として効く**（Discussion の知見を検証）：件数 + fold 内 TE で CV +0.00064（exp008a）、さらに路線ごとの他の列の平均（路線プロファイル）で +0.00025（exp008b）。路線平均との残差まで足すと逆に下がった（exp008c）
 - **10分割で学習すると単体で CV +0.00013〜0.00017**（LGB 0.96074→0.96088、XGB 0.96075→0.96088、Cat 0.96080→0.96097。5分割の区切りで評価）。順位平均は CV 0.96116 / LB 0.96057（exp016、exp012 より +0.00015 / +0.00004）
+- **CatBoost の評価 × {Class, Type of Travel, Customer Type} 交差 39 列**は単体ではほぼ効果なし（exp017：0.96097→0.96098）。ただし交差なしの CatBoost との OOF 相関が 0.9886 と低く、4モデルの順位平均で CV 0.96121 / LB 0.96058（exp018）。カテゴリ列を大量に足すときは `max_ctr_complexity=1` にしないと極端に遅くなる
 - `arrival_delay_in_minutes` の欠損はごく少ない（train 292 / test 130）
 - train 内の重複行、train と完全一致する test 行はない
 
@@ -124,3 +127,4 @@ Predicting Airline Satisfaction/
 - 主なライブラリ：lightgbm **4.6.0**（4.7.0 はこの環境で学習時にクラッシュするため上げない）、xgboost、catboost、optuna、kaggle CLI
 - Kaggle API の認証ファイル（`~/.kaggle/kaggle.json`）は設定済み
 - データが約70万行あるため、重い処理は先にサンプルで動作確認してから全量で回す
+- 数時間かかる学習は、PC のスリープやセッションの終了で止まることがある。`run_cat_cv`（共通の `_run_cv`）の `checkpoint_dir` で fold ごとに保存し、止まったら同じコマンドで続きから再開する
