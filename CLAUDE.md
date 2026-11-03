@@ -59,6 +59,10 @@ Predicting Airline Satisfaction/
 │   ├── exp016_ensemble_10fold.py  # exp013/014/015 の順位平均（CV 0.96116 / LB 0.96057）
 │   ├── exp017_cat_cross.py      # CatBoost + 評価 × 文脈の交差 39 列、10分割。約3.6時間。fold ごとに outputs/exp017/folds/ に保存し、止まっても続きから再開できる
 │   └── exp018_ensemble_4models.py  # exp013/014/015/017 の順位平均（2026-10-30 時点の最良：CV 0.96121 / LB 0.96058）
+├── kaggle/                      # Kaggle に公開したノートブック（英語。https://www.kaggle.com/code/shutamisaka/airline-satisfaction-route-id-teacher-model）
+│   ├── build_notebook.py        # ノートブックを生成する。直すときはこちらを直して再生成 → 手元で実行 → kaggle kernels push -p kaggle
+│   ├── airline-satisfaction.ipynb  # 生成されたノートブック（exp009 の LightGBM を 1 本にまとめたもの + 解説）
+│   └── kernel-metadata.json     # kaggle kernels push 用の設定（公開・入力データ）
 ├── knowledge/
 │   └── discussion_summary.md    # Kaggle Discussion の要約（2026-10-26 時点、全 42 Topic）
 ├── notebooks/

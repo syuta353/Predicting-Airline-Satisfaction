@@ -1,0 +1,14 @@
+{
+  "id": "shutamisaka/airline-satisfaction-route-id-teacher-model",
+  "title": "Airline Satisfaction: Route ID + Teacher Model",
+  "code_file": "airline-satisfaction.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": false,
+  "enable_gpu": false,
+  "enable_internet": false,
+  "dataset_sources": ["teejmahal20/airline-passenger-satisfaction"],
+  "competition_sources": ["playground-series-s6e10"],
+  "kernel_sources": [],
+  "keywords": ["beginner", "lightgbm"]
+}
